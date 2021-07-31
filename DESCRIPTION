@@ -1,0 +1,15 @@
+Package: sccwrpwbe
+Type: Package
+Title: SCCWRP WBE R Package
+Version: 0.1.0
+Authors@R: person("Michael","Atkinson", email="atki28282@gmail.com",
+                role = c("aut", "cre"))
+Maintainer: Michael Atkinson<atki2828@gmail.com>
+Description: Provides analysis tools for wastewater based epidemiology
+  research used for SCCWRP COVID-19 Hyperion and Point Loma 
+  treatment plants.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+
