@@ -5,7 +5,7 @@
 #' @param \code{x}     numeric vector
 #'
 #' @return \code{x} values from input vector scaled to be between 0 and 1
-#' @export
+#' @noRd
 #'
 #'
 #' @examples
@@ -138,17 +138,20 @@ date_range <- function(data, start = NULL, end = NULL, weekday=NULL) {
 #' @return Df with Cases_Offset column recording the new case count for the given day
 #' @export
 #'
-#'
+#' @importFrom imputeTS na_interpolation
 #' @importFrom tsibble difference
+#' @importFrom lubridate ymd
+#' @importFrom imputeTS na_interpolation
 #'
 #' @import dplyr
 #'
+#'
 #' @examples
-#' \dontrun{
-#' need to attach data for example
-#' }
+#' # The following code shows the common way to use date_range and covid_lag to transform the data
+#' Hyperion %>% date_range(start ='2020-04-20' , end = '2020-05-25') %>% covid_lag(offset =5 ,n=1, CC=F)
+#'
+#'
 covid_lag <- function(data, offset = 0, n = 1L, CC = F) {
-
     tmp <- data %>% arrange(Date) %>%
       mutate(across(starts_with("N"), ~laglead(.x, offset)),
              Cases_Offset = difference(cases, n),
@@ -159,5 +162,5 @@ covid_lag <- function(data, offset = 0, n = 1L, CC = F) {
       tmp <- tmp %>% arrange(Date) %>% mutate(across(starts_with("N"), ~difference(.x, n)))
     }
     return(tmp)
+  }
 
-}

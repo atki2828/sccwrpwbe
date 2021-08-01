@@ -27,7 +27,8 @@ will be shifted to align with new cases recorded on '2020-04-27'. In addition th
 parameter can be set to TRUE to take the difference in concentrations as well.
 }
 \examples{
-\dontrun{
-need to attach data for example
-}
+# The following code shows the common way to use date_range and covid_lag to transform the data
+Hyperion \%>\% date_range(start ='2020-04-20' , end = '2020-05-25') \%>\% covid_lag(offset =5 ,n=1, CC=F)
+
+
 }
