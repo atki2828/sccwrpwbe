@@ -173,13 +173,13 @@ covid_lag <- function(data, offset = 0, n = 1L, CC = F) {
 #' @title ggcorr_offset
 #'
 #' @description The function ggcor_offset takes in a vector of \code{offsets} and other
-#'  parameters from \code{\link{covid_lag}} as well as ... parameters from \code\link{date_range}
+#'  parameters from \code{\link{covid_lag}} as well as ... parameters from \code{\link{date_range}}
 #'  and creates a correlation plot matrix. The rows of the matrix are the 4 normalization methods and the
 #'  cols are the number of days the concentrations have been offset.
 #'
 #' @param data Formatted Hyperion or Pt.Loma df
 #' @param range Vector of offset values to shift concentrations
-#' @param target Character 'N1' or 'N2'
+#' @param target Character 'N1' or 'N2' "assays"
 #' @param n Number of days to difference
 #' @param CC Boolean for if concentrations are to be differenced
 #' @param ... Parameters from \code{\link{date_range}}
@@ -226,6 +226,97 @@ ggcorr_offset <- function(data, range, target, n = 1L, CC = F,...) {
                                     ylim= c(0,1),
                                     ggtheme = theme_bw())
     print(g)
+
+}
+
+
+# Input:
+# - dataframe with date and time series
+# - target: N1, N2
+# - k: number of days for window
+# - lag: lagged difference
+# - offset: number of days to shift
+# Note: must provide completed time series or imputed
+# Output:
+# - ggplot
+
+#' @title ggkeystone
+#'
+#' @description The ggkeystone function takes in arguments from covid_lag as well as
+#' date_range. It also takes in a parameter k which represents the number of days to take a rolling
+#' average over. It returns the "keystone" graphic showing the relationship between waste water concentration
+#' and new Covid cases.
+#'
+#' @param data Formatted Hyperion or Pt.Loma df
+#' @param target Character 'N1' or 'N2' "assays"
+#' @param k Number of days for rolling average.
+#' @param lag Number of days for lagged difference from n parameter in \code{\link{covid_lag}}
+#' @param offset Number of days to shift concentrations from \code{covid_lag}
+#' @param CC CC parameter from \code{covid_lag}
+#' @param ... \code{\link{date_range}}
+#'
+#' @return Returns keystone plot across all 4 normalization methods
+#' @export
+#'
+#' @importFrom glue glue
+#' @import ggplot2
+#' @import tidyr
+#' @import dplyr
+#' @import stringr
+#' @importFrom imputeTS na_kalman
+#'
+#' @examples
+#' #note should be used with some imputation method such as na_kalman()
+#' library(imputeTS)
+#' Hyperion %>% na_kalman() %>% ggkeystone(target = "N1") + ylab("")
+ggkeystone<- function(data, target, k = 7, lag = 1L, offset = 0, CC = F, ...){
+
+  # Add: Raise a warning if too many missing values
+  # Do we want it so that we can get a flexible dataset?
+  # or is it always going to be comparing the four methods?
+  # for now it requires all 4 norm methods to be provided
+
+    data <- data %>% select(Date, cases, starts_with(target)) %>%
+      covid_lag(n = lag, offset = offset, CC = CC) %>%
+      # left_join(data %>% select(Date, starts_with(target))) %>%
+      mutate(Cases = Cases_Offset) %>%
+      minmaxDF() %>%
+      mutate(across(where(is.numeric) & !Cases, ~rollmean(.x, k = k, fill = NA))) %>%
+      date_range(...)
+
+    norm_methods <- c("Unadjusted", "BoCoV", "BoCoV + PMMV", "PMMV")
+    target_labels <- glue::glue("{target} ({norm})", target = target, norm = norm_methods)
+    names(target_labels) <- data %>% select(starts_with(target)) %>% colnames() %>% sort()
+
+    data %>%
+      pivot_longer(cols = !c(Date, Cases_Offset, Lag, Offset, CC, Cases),
+                   names_to = "Target", values_to = "Values") %>%
+      group_by(Target) %>%
+      # mutate(corr = cor.test(Values, Cases)$estimate, p.val = cor.test(Values, Cases)$p.value) %>%
+      ggplot(aes(Date, Cases)) +
+      geom_col(fill = "lightblue", alpha = 0.9, position = "identity") +
+      geom_line(aes(Date, Cases_Offset, color = "steelblue"), size = 0.8) +
+      geom_line(aes(Date, Values, color = "indianred3"), size = 0.8, linetype = 'F1') +
+      # geom_text(aes(x = ymd('2020-05-30'), y = 0.9,
+      # label = glue::glue('R = {r}\np {p}', r = round(corr, 2),
+      # p = ifelse(p.val < 0.05, '< 0.05', paste0("=", round(p.val, 4))))),
+      # size = 4, check_overlap = TRUE) +
+      facet_wrap(~Target, labeller = labeller(Target = target_labels)) +
+      labs(subtitle = glue::glue("COVID-19 cases    Lag: {Lag}    Offset: {Offset}    Moving Average: {k}   Date Range: ({start} to {end})",
+                                 Lag = lag, Offset = offset, k = k,
+                                 start = zoo::as.yearmon(min(data$Date)),
+                                 end = zoo::as.yearmon(max(data$Date))),
+           title = "Daily new cases (blue) and SARS-CoV-2 concentrations (red)
+           with different normalization methods and scaled",
+           x = '', y = '') +
+      scale_colour_manual(name = '',
+                          values = c('steelblue' = 'steelblue','indianred3' = 'indianred3'),
+                          labels = c( 'Concentration','COVID-19 Cases')) +
+      # scale_x_date(breaks = scales::breaks_pretty(n = 13),
+      #              labels = scales::label_date_short()) +
+      theme_bw()+
+      theme(legend.position = 'bottom', legend.margin = margin(t = 0, unit = 'cm'),
+            legend.box.margin = margin(-10, 0, 0, 0))
 
 }
 

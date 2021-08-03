@@ -11,7 +11,7 @@ ggcorr_offset(data, range, target, n = 1L, CC = F, ...)
 
 \item{range}{Vector of offset values to shift concentrations}
 
-\item{target}{Character 'N1' or 'N2'}
+\item{target}{Character 'N1' or 'N2' "assays"}
 
 \item{n}{Number of days to difference}
 
@@ -24,7 +24,7 @@ Prints plot with normalization method across rows and offsets across cols
 }
 \description{
 The function ggcor_offset takes in a vector of \code{offsets} and other
- parameters from \code{\link{covid_lag}} as well as ... parameters from \code\link{date_range}
+ parameters from \code{\link{covid_lag}} as well as ... parameters from \code{\link{date_range}}
  and creates a correlation plot matrix. The rows of the matrix are the 4 normalization methods and the
  cols are the number of days the concentrations have been offset.
 }
