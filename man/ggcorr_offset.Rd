@@ -2,7 +2,7 @@
 % Please edit documentation in R/sccwrpwbe_functions.R
 \name{ggcorr_offset}
 \alias{ggcorr_offset}
-\title{Title}
+\title{ggcorr_offset}
 \usage{
 ggcorr_offset(data, range, target, n = 1L, CC = F, ...)
 }
@@ -23,7 +23,10 @@ ggcorr_offset(data, range, target, n = 1L, CC = F, ...)
 Prints plot with normalization method across rows and offsets across cols
 }
 \description{
-Title
+The function ggcor_offset takes in a vector of \code{offsets} and other
+ parameters from \code{\link{covid_lag}} as well as ... parameters from \code\link{date_range}
+ and creates a correlation plot matrix. The rows of the matrix are the 4 normalization methods and the
+ cols are the number of days the concentrations have been offset.
 }
 \examples{
 #Plot offset concentrations and cases by 1,3,5,7 days

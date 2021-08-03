@@ -167,9 +167,15 @@ covid_lag <- function(data, offset = 0, n = 1L, CC = F) {
   }
 
 
-# Function for correlation by lags & offsets ------------------------------
-# TODO: add rollmean to function
-#' Title
+
+
+#'
+#' @title ggcorr_offset
+#'
+#' @description The function ggcor_offset takes in a vector of \code{offsets} and other
+#'  parameters from \code{\link{covid_lag}} as well as ... parameters from \code\link{date_range}
+#'  and creates a correlation plot matrix. The rows of the matrix are the 4 normalization methods and the
+#'  cols are the number of days the concentrations have been offset.
 #'
 #' @param data Formatted Hyperion or Pt.Loma df
 #' @param range Vector of offset values to shift concentrations
