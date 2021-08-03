@@ -20,6 +20,8 @@ minmax <- function(x) {
 
 
 
+
+
 #' @title Minmax DF
 #'
 #' @description Apply minmax function to 0-1 scale all numeric columns of a dataframe
@@ -163,4 +165,62 @@ covid_lag <- function(data, offset = 0, n = 1L, CC = F) {
     }
     return(tmp)
   }
+
+
+# Function for correlation by lags & offsets ------------------------------
+# TODO: add rollmean to function
+#' Title
+#'
+#' @param data Formatted Hyperion or Pt.Loma df
+#' @param range Vector of offset values to shift concentrations
+#' @param target Character 'N1' or 'N2'
+#' @param n Number of days to difference
+#' @param CC Boolean for if concentrations are to be differenced
+#' @param ... Parameters from \code{\link{date_range}}
+#'
+#' @return Prints plot with normalization method across rows and offsets across cols
+#' @export
+#'
+#' @import zoo
+#' @import dplyr
+#' @import tidyr
+#' @import stringr
+#' @import ggplot2
+#'
+#' @examples
+#' #Plot offset concentrations and cases by 1,3,5,7 days
+#' Hyperion %>% ggcorr_offset(c(1,3,5,7) , target = 'N1' , start = '2020-05-25' , end = '2020-10-20')
+ggcorr_offset <- function(data, range, target, n = 1L, CC = F,...) {
+
+    var.title = ifelse(CC, " Change", "")
+    lag.title <- ifelse(CC, "Lag: ", "")
+    norm_methods <- c("Unadjusted", "BoCoV", "BoCoV + PMMV", "PMMV")
+    target_labels <- glue::glue("{target} ({norm})", target = target, norm = norm_methods)
+    names(target_labels) <- data %>% select(starts_with(target)) %>% colnames() %>% sort()
+
+    data <- data %>% select(Date, cases, starts_with(target))
+    data <- Vectorize(function(i) covid_lag(data, n = n, offset = i, CC = CC) %>% date_range(...),
+                      vectorize.args = "i", SIMPLIFY = FALSE)(i = range) %>%
+      lapply(minmaxDF) %>%
+      bind_rows() %>% pivot_longer(cols = !c(Date, Offset, Lag, Cases_Offset, CC)) %>%
+      mutate(Offset = as.numeric(Offset)) %>%
+      filter(str_detect(name, target))
+    g <- data %>% ggpubr::ggscatter(x = "value", y = "Cases_Offset",  add = "reg.line", size = 0.9,
+                                    conf.int = TRUE, cor.coef = TRUE, facet.by = c("name", "Offset"),
+                                    panel.labs = list(name = target_labels),
+                                    add.params = list(fill = "steelblue"),
+                                    repel = TRUE, cor.coef.size = 3,
+                                    xlab = "Concentration", ylab =  "Case Counts",
+                                    title = glue::glue("COVID-19 Case Counts  vs. {target} Concentration{var.title} Offsets",
+                                                       target = target, var.title = var.title),
+                                    subtitle = glue::glue("{lag.title}{Lag} ({start} to {end})",
+                                                          Lag = ifelse(CC, n, ""),
+                                                          start = zoo::as.yearmon(min(data$Date)),
+                                                          end = zoo::as.yearmon(max(data$Date))),
+                                    ylim= c(0,1),
+                                    ggtheme = theme_bw())
+    print(g)
+
+}
+
 
