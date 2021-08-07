@@ -19,23 +19,19 @@ date_range(data, start = NULL, end = NULL, weekday = NULL)
 Returns df filtered to date range defined by inputs
 }
 \description{
-Takes df or ts, start, and end date range and returns df filtered to observations
+Takes in df or ts object, start, and end date range and returns df filtered to observations
 in that time period. Additionally, can take in weekday argument and will only return observations
 occurring on that weekday. Also will work with abbreviated weekday such as 'Tue'. Function is also pipe
 compatible with Tidy Verse
 }
 \examples{
-data <- data.frame(Date= seq(as.Date("2021/04/20"), by = "day", length.out = 100), Obs = rnorm(100))
+#Example For All Days
+Hyperion \%>\% date_range(start='2020-04-20', end = '2020-07-11')
 
-#Filter for all days between start and end date
-date_range(data , start = '2021-05-10', end = '2021-06-15')
+#Example for selecting a weekday only
+Hyperion \%>\% date_range(start='2020-04-20', end = '2020-07-11', weekday='Tuesday')
 
-#Filter for every Tuesday between start and end
-date_range(data , start = '2021-05-10', end = '2021-06-15',weekday = 'Tuesday')
-
-#Example with pipe
-data \%>\%
-
-
+#Example with abbreviated day
+Hyperion \%>\% date_range(start='2020-04-20', end = '2020-07-11', weekday='Tue')
 
 }
