@@ -322,3 +322,162 @@ ggkeystone<- function(data, target, k = 7, lag = 1L, offset = 0, CC = F, ...){
 }
 
 
+
+
+
+#TODO Need to deal with Convergence Warning in example
+#' @title Impute Analysis
+#'
+#'
+#' @description Function takes in a complete time series (\code{ts_comp}),
+#' a rate of missing data (\code{rate}), and an integer (\code{seeds}) of the number of trials to
+#' run an imputation algorithm which will compare 6 methods of imputing missing time series data.
+#' Both MAPE and RMSE will be returned. This function is used in \code{\link{ggimpute_eval}} and
+#' \code{\link{ggimpute}}
+#'
+#' @param ts_comp Complete Time Series to run algorithm
+#' @param rate Rate of missing data to simulate
+#' @param seeds Numnber of iterations to run
+#' @param option_locf Optional parameters for \code{\link{na_locf}}
+#' @param option_interpol Optional parameters for \code{\link{na_interpol}}
+#' @param option_mean Optional Parameter for \code{\link{na_mean}}
+#' @param model model
+#' @param k K
+#'
+#'
+#' @return tibble
+#' @export
+#'
+#' @examples
+#' Hyperion %>% date_range(start='2020-04-20' , end = '2020-07-01') %>% covid_lag() %>% pull(Cases_Offset)%>%  impute_analysis(rate = 0.6,seeds = 30)
+
+impute_analysis <- function(ts_comp, rate, seeds,
+                            option_locf = "locf", option_interpol = "linear", model = "StructTS",
+                            k = 2, option_mean = "mean") {
+  if(require(tidyverse))  {
+    require(imputeTS)
+    funcs <- c("na_locf", "na_interpolation", "na_kalman", "na_ma", "na_mean")
+    args <- list(option = option_locf, option = option_interpol, c(model = model, type = 'level'),  k = k,
+                 option = option_mean)
+    if(class(ts_comp) != "ts") {
+      ts_comp <- ts(ts_comp)
+    }
+    # make sure its a complete time series
+    if(sum(is.na(ts_comp)) > 0) {
+      print("Need a complete time series.")
+      break
+    }
+
+    output <- matrix(NA, seeds * 2, 5)
+    j <- 1
+    for(i in seq_len(seeds)) {
+      index <- sample(1:length(ts_comp), floor(length(ts_comp)*rate))
+      ts_incomp <- ts_comp
+      ts_incomp[index] <- NA
+
+      result <- Vectorize(function(f) do.call(funcs[f],
+                                              list(ts_incomp, args[[f]]),
+                                              quote = TRUE), "f")(f = seq_along(funcs))
+
+      # RMSE
+      output[j, ] <- apply(result[index,], 2,
+                           function(x) sqrt(sum((ts_comp[index] - x)^2)/length(index)))
+      # MAPE
+      output[(j + 1), ] <- apply(result[index,], 2,
+                                 function(x) sum(
+                                   abs(ts_comp[index] - x)/abs(ts_comp[index]))/length(index))
+      j <- j + 2
+    }
+
+    output <- setNames(as.data.frame(output), c("locf", "interpol", "kalman", "ma", "mean")) %>%
+      mutate(measure = rep(c("rmse", "mape"), seeds), Seed = rep(c(1:seeds), each = 2), Rate = rate) %>%
+      pivot_longer(cols = !c(measure, Seed, Rate), names_to = "method")
+    return(output)
+  }
+}
+
+
+
+
+
+
+#TODO Find out about target name
+#TODO add example
+
+#' @title ggimpute
+#'
+#' @description The function ggimpute takes in a df from \code{\link{impute_analysis}} a type of plot
+#' and returns a boxplot or and errorbard plot showing the imputation analysis results. This function is used in
+#' \code{\link{ggimpute_eval}} to show the results across multiple normalization methods.
+#'
+#' @param data df with the results of impute_analysis
+#' @param type Type of plot to show, either boxplot or error bar
+#' @param target_name Which Assay?
+#'
+#' @return
+#' @export
+#'
+#' @examples
+ggplot_impute <- function(data, type = "boxplot", target_name = NULL) {
+  if(!(type %in% c("boxplot", "errorbar"))) {
+    stop("Acceptable arguments for type are boxplot and errorbar")
+  } else {
+    if(type == "boxplot") {
+      g <- data %>% ggplot(aes(x = method, y = value)) +
+        geom_boxplot() +
+        ggtitle(glue::glue("Boxplot for Imputation Methods: {target_name}",
+                           target_name = ifelse(is.null(target_name), "", target_name)))+
+        theme_bw()
+    } else {
+      g <- data %>% group_by(measure, method) %>% summarise(mean = mean(value), sd = sd(value)) %>%
+        ggplot(aes(x = method, y = mean)) +
+        geom_point() +
+        geom_errorbar(aes(ymin = mean - 1*sd, ymax = mean + 1*sd)) +
+
+        ggtitle(glue::glue("Imputation Methods (+/- 1 std): {target_name}",
+                           target_name = ifelse(is.null(target_name), "", target_name)))+theme_bw()
+    }
+    g <- g + facet_wrap(~measure, nrow = 2, scales = "free") + xlab("") +
+      labs(subtitle = glue::glue("Missing Obs. Rate: {rate}    Iterations: {seed}", rate = data$Rate[1],
+                                 seed = max(data$Seed)))
+    return(g)
+  }
+}
+
+
+
+
+
+#TODO add examples
+#TODO add description
+#TODO need to add desc for params
+
+#' @title ggimpute_eval
+#'
+#' @description Need to add
+#'
+#' @param data result from impute_eval
+#' @param target need to add
+#' @param rate need to add
+#' @param seeds need to add
+#' @param type need to add
+#' @param ... need to add
+#'
+#' @return
+#' @export
+#'
+#' @examples
+ggimpute_eval <- function(data, target, rate, seeds, type = "boxplot", ...) {
+  if(all(require(grid), require(gtable), require(tidyverse))){
+    targets <- data %>% select(starts_with(target)) %>% colnames() %>% sort()
+    norm_methods <- c("Unadjusted", "BoCoV", "BoCoV + PMMV", "PMMV")
+    target_labels <- glue::glue("{target} ({norm})", target = target, norm = norm_methods)
+
+    output <- Vectorize(function(m) data %>% pull(targets[m]) %>%
+                          impute_analysis(rate = rate, seeds = seeds,...) %>%
+                          mutate(Target = targets[m]), "m", SIMPLIFY = FALSE)(m = seq_along(targets))
+    output <- mapply(ggplot_impute, data = output, type = type, target_name = target_labels, SIMPLIFY = FALSE)
+    gridExtra::grid.arrange(grobs = output)
+  }
+}
+
